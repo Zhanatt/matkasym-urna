@@ -62,17 +62,12 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 22px;
-  font-weight: 800;
   text-decoration: none;
-  color: var(--text);
-  letter-spacing: -0.5px;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
+.logo-main {
+  height: 28px;
+  width: auto;
 }
 
 .nav {

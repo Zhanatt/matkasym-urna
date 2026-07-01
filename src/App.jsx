@@ -49,8 +49,7 @@ function Header() {
     <header className="header">
       <div className="container header-content">
         <Link to="/" className="logo">
-          <img className="logo-icon" src="/favicon.svg" alt="" />
-          MATKASYM
+          <img className="logo-main" src="/logo-main.png" alt="MATKASYM" />
         </Link>
         <nav className="nav">
           <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
@@ -75,7 +74,7 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="container">
-        <div className="footer-logo">MATKASYM</div>
+        <img src="/logo-main.png" alt="MATKASYM" style={{height: 24, marginBottom: 12, filter: 'brightness(0) invert(1)'}} />
         <p>Вместе сделаем город чище</p>
       </div>
     </footer>
