@@ -13,43 +13,35 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-const STORAGE_KEY = 'taza_shaar_requests'
+const API_URL = import.meta.env.PROD
+  ? 'https://taza-shaar-api.onrender.com'
+  : 'http://localhost:3001'
 
-const getRequests = () => {
-  const data = localStorage.getItem(STORAGE_KEY)
-  return data ? JSON.parse(data) : []
-}
-
-const saveRequests = (requests) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(requests))
-}
-
-const groupByLocation = (requests) => {
-  const groups = {}
-  requests.forEach(req => {
-    const key = req.address.toLowerCase().trim()
-    if (!groups[key]) {
-      groups[key] = {
-        address: req.address,
-        photos: [],
-        count: 0,
-        status: 'collecting',
-        firstDate: req.date,
-        lastDate: req.date
-      }
-    }
-    groups[key].count++
-    if (req.photo) groups[key].photos.push(req.photo)
-    groups[key].lastDate = req.date
-  })
-
-  Object.keys(groups).forEach(key => {
-    if (groups[key].count >= 10) {
-      groups[key].status = 'ready'
-    }
-  })
-
-  return Object.values(groups).sort((a, b) => b.count - a.count)
+const api = {
+  async getStats() {
+    const res = await fetch(`${API_URL}/api/stats`)
+    return res.json()
+  },
+  async createRequest(data) {
+    const res = await fetch(`${API_URL}/api/requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    return res.json()
+  },
+  async getProcessed() {
+    const res = await fetch(`${API_URL}/api/processed`)
+    return res.json()
+  },
+  async markProcessed(address) {
+    const res = await fetch(`${API_URL}/api/processed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address })
+    })
+    return res.json()
+  }
 }
 
 function Header() {
@@ -92,18 +84,13 @@ function Footer() {
 }
 
 function HomePage() {
-  const [requests, setRequests] = useState([])
-  const [locations, setLocations] = useState([])
+  const [stats, setStats] = useState({ totalRequests: 0, readyLocations: 0, collectingLocations: 0, locations: [] })
 
   useEffect(() => {
-    const data = getRequests()
-    setRequests(data)
-    setLocations(groupByLocation(data))
+    api.getStats().then(setStats).catch(console.error)
   }, [])
 
-  const totalRequests = requests.length
-  const readyLocations = locations.filter(l => l.status === 'ready').length
-  const collectingLocations = locations.filter(l => l.status === 'collecting').length
+  const { totalRequests, readyLocations, collectingLocations, locations } = stats
 
   return (
     <>
@@ -182,8 +169,8 @@ function HomePage() {
                   )}
                   <div className="request-content">
                     <div className="request-address">{loc.address}</div>
-                    <div className={`request-count ${loc.status === 'ready' ? 'ready' : ''}`}>
-                      {loc.status === 'ready' ? <CheckCircle size={16} /> : <Users size={16} />}
+                    <div className={`request-count ${loc.count >= 10 ? 'ready' : ''}`}>
+                      {loc.count >= 10 ? <CheckCircle size={16} /> : <Users size={16} />}
                       {loc.count} {loc.count === 1 ? 'заявка' : loc.count < 5 ? 'заявки' : 'заявок'}
                     </div>
                     <div className="request-progress">
@@ -339,28 +326,29 @@ function SubmitPage() {
     }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!address.trim()) return
 
-    const requests = getRequests()
-    requests.push({
-      id: Date.now(),
-      address: address.trim(),
-      comment,
-      photo: photoPreview,
-      lat: position?.lat,
-      lng: position?.lng,
-      date: new Date().toISOString()
-    })
-    saveRequests(requests)
+    try {
+      await api.createRequest({
+        address: address.trim(),
+        comment,
+        photo: photoPreview,
+        lat: position?.lat,
+        lng: position?.lng
+      })
 
-    setSubmitted(true)
-    setPhoto(null)
-    setPhotoPreview(null)
-    setAddress('')
-    setComment('')
-    setPosition(null)
+      setSubmitted(true)
+      setPhoto(null)
+      setPhotoPreview(null)
+      setAddress('')
+      setComment('')
+      setPosition(null)
+    } catch (err) {
+      alert('Ошибка при отправке заявки')
+      console.error(err)
+    }
   }
 
   if (submitted) {
@@ -491,8 +479,7 @@ function MapPage() {
   const [locations, setLocations] = useState([])
 
   useEffect(() => {
-    const data = getRequests()
-    setLocations(groupByLocation(data))
+    api.getStats().then(data => setLocations(data.locations || [])).catch(console.error)
   }, [])
 
   return (
@@ -515,8 +502,8 @@ function MapPage() {
               )}
               <div className="request-content">
                 <div className="request-address">{loc.address}</div>
-                <div className={`request-count ${loc.status === 'ready' ? 'ready' : ''}`}>
-                  {loc.status === 'ready' ? <CheckCircle size={16} /> : <Users size={16} />}
+                <div className={`request-count ${loc.count >= 10 ? 'ready' : ''}`}>
+                  {loc.count >= 10 ? <CheckCircle size={16} /> : <Users size={16} />}
                   {loc.count} {loc.count === 1 ? 'заявка' : loc.count < 5 ? 'заявки' : 'заявок'}
                 </div>
                 <div className="request-progress">
@@ -557,20 +544,24 @@ function MapPage() {
 function ManagerPage() {
   const [locations, setLocations] = useState([])
   const [tab, setTab] = useState('ready')
-  const [processed, setProcessed] = useState(() => {
-    const data = localStorage.getItem('taza_shaar_processed')
-    return data ? JSON.parse(data) : []
-  })
+  const [processed, setProcessed] = useState([])
 
   useEffect(() => {
-    const data = getRequests()
-    setLocations(groupByLocation(data))
+    Promise.all([api.getStats(), api.getProcessed()])
+      .then(([stats, proc]) => {
+        setLocations(stats.locations || [])
+        setProcessed(proc.map(a => a.toLowerCase().trim()))
+      })
+      .catch(console.error)
   }, [])
 
-  const markAsProcessed = (address) => {
-    const newProcessed = [...processed, address.toLowerCase().trim()]
-    setProcessed(newProcessed)
-    localStorage.setItem('taza_shaar_processed', JSON.stringify(newProcessed))
+  const markAsProcessed = async (address) => {
+    try {
+      await api.markProcessed(address)
+      setProcessed([...processed, address.toLowerCase().trim()])
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const isProcessed = (address) => processed.includes(address.toLowerCase().trim())

@@ -10,3 +10,14 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: web
+    name: taza-shaar-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: MONGO_URI
+        sync: false
