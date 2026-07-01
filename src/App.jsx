@@ -265,17 +265,38 @@ function MapCenterButton({ setPosition, setAddress, setLoading }) {
 async function reverseGeocode(lat, lng, setAddress) {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&zoom=18`,
       { headers: { 'Accept-Language': 'ru' } }
     )
     const data = await res.json()
     if (data.display_name) {
-      const parts = []
       const addr = data.address
-      if (addr.road) parts.push(addr.road)
-      if (addr.house_number) parts.push(addr.house_number)
-      if (!parts.length && addr.neighbourhood) parts.push(addr.neighbourhood)
-      if (!parts.length) parts.push(data.display_name.split(',')[0])
+      const parts = []
+
+      // Улица + номер дома
+      if (addr.road) {
+        let street = addr.road
+        if (addr.house_number) {
+          street += ', ' + addr.house_number
+        }
+        parts.push(street)
+      }
+
+      // Район/микрорайон
+      if (addr.suburb || addr.neighbourhood) {
+        parts.push(addr.suburb || addr.neighbourhood)
+      }
+
+      // Город
+      if (addr.city || addr.town || addr.village) {
+        parts.push(addr.city || addr.town || addr.village)
+      }
+
+      // Если ничего не нашли — берём первые 2 части display_name
+      if (!parts.length) {
+        parts.push(data.display_name.split(',').slice(0, 2).join(','))
+      }
+
       setAddress(parts.join(', '))
     }
   } catch (e) {
