@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: urna-app
+    name: taza-shaar-matkasym
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
