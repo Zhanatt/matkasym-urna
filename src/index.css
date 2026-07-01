@@ -279,6 +279,7 @@ body {
 }
 
 .photo-upload-icon {
+  display: block;
   width: 64px;
   height: 64px;
   margin: 0 auto 16px;
