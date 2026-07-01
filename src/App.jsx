@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-const STORAGE_KEY = 'urna_requests'
+const STORAGE_KEY = 'taza_shaar_requests'
 
 const getRequests = () => {
   const data = localStorage.getItem(STORAGE_KEY)
@@ -558,7 +558,7 @@ function ManagerPage() {
   const [locations, setLocations] = useState([])
   const [tab, setTab] = useState('ready')
   const [processed, setProcessed] = useState(() => {
-    const data = localStorage.getItem('urna_processed')
+    const data = localStorage.getItem('taza_shaar_processed')
     return data ? JSON.parse(data) : []
   })
 
@@ -570,7 +570,7 @@ function ManagerPage() {
   const markAsProcessed = (address) => {
     const newProcessed = [...processed, address.toLowerCase().trim()]
     setProcessed(newProcessed)
-    localStorage.setItem('urna_processed', JSON.stringify(newProcessed))
+    localStorage.setItem('taza_shaar_processed', JSON.stringify(newProcessed))
   }
 
   const isProcessed = (address) => processed.includes(address.toLowerCase().trim())
