@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Camera, MapPin, Users, Trash2, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { Camera, MapPin, Users, Trash2, CheckCircle, Clock, AlertCircle, Crosshair } from 'lucide-react'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import './index.css'
+
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+})
 
 const STORAGE_KEY = 'urna_requests'
 
@@ -207,12 +217,94 @@ function HomePage() {
   )
 }
 
+function LocationMarker({ position, setPosition, setAddress }) {
+  const map = useMapEvents({
+    click(e) {
+      setPosition(e.latlng)
+      reverseGeocode(e.latlng.lat, e.latlng.lng, setAddress)
+    },
+  })
+
+  return position ? <Marker position={position} /> : null
+}
+
+function MapCenterButton({ setPosition, setAddress, setLoading }) {
+  const map = useMap()
+
+  const handleClick = () => {
+    setLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords
+        const latlng = { lat: latitude, lng: longitude }
+        map.flyTo(latlng, 17)
+        setPosition(latlng)
+        reverseGeocode(latitude, longitude, setAddress)
+        setLoading(false)
+      },
+      (err) => {
+        alert('Не удалось определить местоположение')
+        setLoading(false)
+      },
+      { enableHighAccuracy: true }
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="map-locate-btn"
+      title="Определить моё местоположение"
+    >
+      <Crosshair size={20} />
+    </button>
+  )
+}
+
+async function reverseGeocode(lat, lng, setAddress) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
+      { headers: { 'Accept-Language': 'ru' } }
+    )
+    const data = await res.json()
+    if (data.display_name) {
+      const parts = []
+      const addr = data.address
+      if (addr.road) parts.push(addr.road)
+      if (addr.house_number) parts.push(addr.house_number)
+      if (!parts.length && addr.neighbourhood) parts.push(addr.neighbourhood)
+      if (!parts.length) parts.push(data.display_name.split(',')[0])
+      setAddress(parts.join(', '))
+    }
+  } catch (e) {
+    console.error('Geocode error:', e)
+  }
+}
+
 function SubmitPage() {
   const [photo, setPhoto] = useState(null)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [address, setAddress] = useState('')
   const [comment, setComment] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [position, setPosition] = useState(null)
+  const [geoLoading, setGeoLoading] = useState(false)
+  const defaultCenter = [43.238949, 76.945465]
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords
+          setPosition({ lat: latitude, lng: longitude })
+          reverseGeocode(latitude, longitude, setAddress)
+        },
+        () => {}
+      )
+    }
+  }, [])
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0]
@@ -236,6 +328,8 @@ function SubmitPage() {
       address: address.trim(),
       comment,
       photo: photoPreview,
+      lat: position?.lat,
+      lng: position?.lng,
       date: new Date().toISOString()
     })
     saveRequests(requests)
@@ -245,6 +339,7 @@ function SubmitPage() {
     setPhotoPreview(null)
     setAddress('')
     setComment('')
+    setPosition(null)
   }
 
   return (
@@ -296,15 +391,31 @@ function SubmitPage() {
           <div className="form-group">
             <label className="form-label">
               <MapPin size={18} style={{display: 'inline', marginRight: '6px', verticalAlign: 'middle'}} />
-              Адрес *
+              Местоположение *
             </label>
+            <div className="map-wrapper">
+              <MapContainer
+                center={position || defaultCenter}
+                zoom={position ? 17 : 12}
+                className="location-map"
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <LocationMarker position={position} setPosition={setPosition} setAddress={setAddress} />
+                <MapCenterButton setPosition={setPosition} setAddress={setAddress} setLoading={setGeoLoading} />
+              </MapContainer>
+              {geoLoading && <div className="map-loading">Определение...</div>}
+            </div>
             <input
               type="text"
               className="form-input"
-              placeholder="Например: ул. Абая, возле дома 45"
+              placeholder="Адрес определится автоматически или нажмите на карту"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               required
+              style={{marginTop: '12px'}}
             />
           </div>
 
