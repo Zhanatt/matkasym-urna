@@ -363,6 +363,37 @@ function SubmitPage() {
     setPosition(null)
   }
 
+  if (submitted) {
+    return (
+      <div className="page">
+        <div className="container" style={{maxWidth: '500px', textAlign: 'center', paddingTop: '60px'}}>
+          <div className="success-animation">
+            <div className="success-checkmark">
+              <svg className="checkmark" viewBox="0 0 52 52">
+                <circle className="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                <path className="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+              </svg>
+            </div>
+            <h2 className="success-title">Заявка принята!</h2>
+            <p className="success-text">
+              Благодаря вам наш город станет чище. Каждая заявка приближает нас к комфортной городской среде.
+            </p>
+            <p className="success-subtext">
+              Когда на эту точку поступит 10 заявок — мы установим урну!
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={() => setSubmitted(false)}
+              style={{marginTop: '24px'}}
+            >
+              Подать ещё одну заявку
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="page">
       <div className="container" style={{maxWidth: '600px'}}>
@@ -371,7 +402,7 @@ function SubmitPage() {
           Сообщите о грязном месте, где нужна урна
         </p>
 
-        {submitted && (
+        {false && (
           <div className="success-message">
             <CheckCircle size={24} style={{marginBottom: '8px'}} />
             <div style={{fontWeight: '600'}}>Заявка отправлена!</div>

@@ -604,6 +604,103 @@ body {
   margin-bottom: 24px;
 }
 
+/* Success Animation */
+.success-animation {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.success-checkmark {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 32px;
+}
+
+.checkmark {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  stroke-width: 2;
+  stroke: var(--success);
+  stroke-miterlimit: 10;
+  animation: scaleIn 0.3s ease-in-out 0.3s both;
+}
+
+@keyframes scaleIn {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.checkmark-circle {
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  stroke-width: 2;
+  stroke-miterlimit: 10;
+  stroke: var(--success);
+  fill: none;
+  animation: strokeCircle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+@keyframes strokeCircle {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.checkmark-check {
+  transform-origin: 50% 50%;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke-width: 3;
+  stroke: var(--success);
+  animation: strokeCheck 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+}
+
+@keyframes strokeCheck {
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.success-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  animation: fadeInUp 0.5s ease-out 0.5s both;
+}
+
+.success-text {
+  font-size: 18px;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 12px;
+  animation: fadeInUp 0.5s ease-out 0.7s both;
+}
+
+.success-subtext {
+  font-size: 15px;
+  color: var(--text-muted);
+  animation: fadeInUp 0.5s ease-out 0.9s both;
+}
+
 /* Footer (BrandBook 2024) */
 .footer {
   background: var(--primary);
