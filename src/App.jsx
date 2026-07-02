@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Camera, MapPin, Users, Trash2, CheckCircle, Clock, AlertCircle, Crosshair } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import { useState, useEffect, useRef, createContext, useContext } from 'react'
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
+import { Camera, MapPin, Users, Trash2, CheckCircle, Clock, AlertCircle, Crosshair, LogOut, Edit, Eye } from 'lucide-react'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './index.css'
@@ -16,6 +16,16 @@ L.Icon.Default.mergeOptions({
 const API_URL = import.meta.env.PROD
   ? 'https://taza-shaar-api.onrender.com'
   : 'http://localhost:3001'
+
+// Auth context
+const AuthContext = createContext(null)
+
+const useAuth = () => useContext(AuthContext)
+
+const USERS = {
+  manager: { password: 'manager123', role: 'manager' },
+  admin: { password: 'admin123', role: 'admin' }
+}
 
 const api = {
   async getStats() {
@@ -41,11 +51,26 @@ const api = {
       body: JSON.stringify({ address })
     })
     return res.json()
+  },
+  async deleteRequest(id) {
+    const res = await fetch(`${API_URL}/api/requests/${id}`, {
+      method: 'DELETE'
+    })
+    return res.json()
+  },
+  async updateRequest(id, data) {
+    const res = await fetch(`${API_URL}/api/requests/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    return res.json()
   }
 }
 
 function Header() {
   const location = useLocation()
+  const auth = useAuth()
 
   return (
     <header className="header">
@@ -57,15 +82,24 @@ function Header() {
           <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>
             Главная
           </Link>
-          <Link to="/map" className={`nav-link ${location.pathname === '/map' ? 'active' : ''}`}>
-            Карта заявок
-          </Link>
-          <Link to="/manager" className={`nav-link ${location.pathname === '/manager' ? 'active' : ''}`}>
-            Менеджер
-          </Link>
+          {auth?.role && (
+            <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
+              {auth.role === 'admin' ? 'Админ' : 'Панель'}
+            </Link>
+          )}
+          {!auth?.role && (
+            <Link to="/login" className={`nav-link ${location.pathname === '/login' ? 'active' : ''}`}>
+              Вход
+            </Link>
+          )}
           <Link to="/submit" className="nav-link accent">
             Подать заявку
           </Link>
+          {auth?.role && (
+            <button onClick={auth.logout} className="nav-link" style={{border: 'none', background: 'none', cursor: 'pointer'}}>
+              <LogOut size={18} />
+            </button>
+          )}
         </nav>
       </div>
     </header>
@@ -84,42 +118,18 @@ function Footer() {
 }
 
 function HomePage() {
-  const [stats, setStats] = useState({ totalRequests: 0, readyLocations: 0, collectingLocations: 0, locations: [] })
-
-  useEffect(() => {
-    api.getStats().then(setStats).catch(console.error)
-  }, [])
-
-  const { totalRequests, readyLocations, collectingLocations, locations } = stats
-
   return (
     <>
       <section className="hero">
         <div className="container">
           <h1>Чистый город — наша забота</h1>
           <p>
-            Сообщите о грязном месте в городе. Когда наберётся 10 заявок на одну точку —
-            мы установим там урну!
+            Видите грязное место в городе? Сообщите нам, и мы установим там урну!
           </p>
           <Link to="/submit" className="btn btn-primary" style={{fontSize: '18px', padding: '18px 36px'}}>
             <Camera size={24} />
             Подать заявку
           </Link>
-
-          <div className="hero-stats">
-            <div className="stat">
-              <div className="stat-value">{totalRequests}</div>
-              <div className="stat-label">Всего заявок</div>
-            </div>
-            <div className="stat">
-              <div className="stat-value">{readyLocations}</div>
-              <div className="stat-label">Готово к установке</div>
-            </div>
-            <div className="stat">
-              <div className="stat-value">{collectingLocations}</div>
-              <div className="stat-label">Собираем голоса</div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -139,68 +149,74 @@ function HomePage() {
                 <MapPin size={32} />
               </div>
               <h3 style={{marginBottom: '12px', color: 'var(--text)'}}>2. Укажите адрес</h3>
-              <p style={{color: 'var(--text-muted)'}}>Напишите адрес или отметьте на карте</p>
+              <p style={{color: 'var(--text-muted)'}}>Отметьте место на карте</p>
             </div>
             <div className="card" style={{textAlign: 'center'}}>
               <div style={{width: '64px', height: '64px', background: 'rgba(233, 69, 96, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--accent)'}}>
-                <Users size={32} />
+                <CheckCircle size={32} />
               </div>
-              <h3 style={{marginBottom: '12px', color: 'var(--text)'}}>3. Соберите 10 голосов</h3>
-              <p style={{color: 'var(--text-muted)'}}>Когда 10 человек пожалуются — установим урну</p>
+              <h3 style={{marginBottom: '12px', color: 'var(--text)'}}>3. Готово!</h3>
+              <p style={{color: 'var(--text-muted)'}}>Мы рассмотрим заявку и примем меры</p>
             </div>
           </div>
         </div>
       </section>
-
-      {locations.length > 0 && (
-        <section className="section" style={{background: 'var(--bg)'}}>
-          <div className="container">
-            <h2 className="section-title">Активные точки</h2>
-            <div className="requests-grid">
-              {locations.slice(0, 6).map((loc, idx) => (
-                <div key={idx} className="request-card">
-                  {loc.photos[0] && (
-                    <img src={loc.photos[0]} alt="" className="request-image" />
-                  )}
-                  {!loc.photos[0] && (
-                    <div className="request-image" style={{background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                      <MapPin size={48} color="white" />
-                    </div>
-                  )}
-                  <div className="request-content">
-                    <div className="request-address">{loc.address}</div>
-                    <div className={`request-count ${loc.count >= 10 ? 'ready' : ''}`}>
-                      {loc.count >= 10 ? <CheckCircle size={16} /> : <Users size={16} />}
-                      {loc.count} {loc.count === 1 ? 'заявка' : loc.count < 5 ? 'заявки' : 'заявок'}
-                    </div>
-                    <div className="request-progress">
-                      <div className="progress-bar">
-                        <div
-                          className={`progress-fill ${loc.count >= 10 ? 'complete' : ''}`}
-                          style={{width: `${Math.min(loc.count * 10, 100)}%`}}
-                        />
-                      </div>
-                      <div className="progress-text">
-                        {loc.count >= 10
-                          ? 'Готово к установке урны!'
-                          : `Ещё ${10 - loc.count} заявок до установки`}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {locations.length > 6 && (
-              <div style={{textAlign: 'center', marginTop: '20px'}}>
-                <Link to="/map" className="btn btn-secondary">
-                  Смотреть все точки
-                </Link>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
     </>
+  )
+}
+
+function LoginPage() {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const auth = useAuth()
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const user = USERS[username]
+    if (user && user.password === password) {
+      auth.login(username, user.role)
+    } else {
+      setError('Неверный логин или пароль')
+    }
+  }
+
+  if (auth?.role) {
+    return <Navigate to="/dashboard" />
+  }
+
+  return (
+    <div className="page">
+      <div className="container" style={{maxWidth: '400px'}}>
+        <h1 className="page-title">Вход</h1>
+        <form onSubmit={handleSubmit} className="card">
+          {error && <div style={{color: 'var(--accent)', marginBottom: '16px'}}>{error}</div>}
+          <div className="form-group">
+            <label className="form-label">Логин</label>
+            <input
+              type="text"
+              className="form-input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Пароль</label>
+            <input
+              type="password"
+              className="form-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{width: '100%'}}>
+            Войти
+          </button>
+        </form>
+      </div>
+    </div>
   )
 }
 
@@ -475,85 +491,32 @@ function SubmitPage() {
   )
 }
 
-function MapPage() {
+function Dashboard() {
+  const auth = useAuth()
   const [locations, setLocations] = useState([])
+  const [tab, setTab] = useState('pending')
+  const [processed, setProcessed] = useState([])
+  const [selectedLocation, setSelectedLocation] = useState(null)
+  const [stats, setStats] = useState({ totalRequests: 0 })
+  const defaultCenter = [42.87, 74.59]
 
   useEffect(() => {
-    api.getStats().then(data => setLocations(data.locations || [])).catch(console.error)
+    loadData()
   }, [])
 
-  return (
-    <div className="page">
-      <div className="container">
-        <h1 className="page-title">Карта заявок</h1>
-        <p className="page-subtitle">
-          Все точки, где жители просят установить урны
-        </p>
-
-        <div className="requests-grid">
-          {locations.map((loc, idx) => (
-            <div key={idx} className="request-card">
-              {loc.photos[0] ? (
-                <img src={loc.photos[0]} alt="" className="request-image" />
-              ) : (
-                <div className="request-image" style={{background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                  <MapPin size={48} color="white" />
-                </div>
-              )}
-              <div className="request-content">
-                <div className="request-address">{loc.address}</div>
-                <div className={`request-count ${loc.count >= 10 ? 'ready' : ''}`}>
-                  {loc.count >= 10 ? <CheckCircle size={16} /> : <Users size={16} />}
-                  {loc.count} {loc.count === 1 ? 'заявка' : loc.count < 5 ? 'заявки' : 'заявок'}
-                </div>
-                <div className="request-progress">
-                  <div className="progress-bar">
-                    <div
-                      className={`progress-fill ${loc.count >= 10 ? 'complete' : ''}`}
-                      style={{width: `${Math.min(loc.count * 10, 100)}%`}}
-                    />
-                  </div>
-                  <div className="progress-text">
-                    {loc.count >= 10
-                      ? 'Готово к установке урны!'
-                      : `Ещё ${10 - loc.count} до установки`}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {locations.length === 0 && (
-            <div className="card" style={{gridColumn: '1/-1', textAlign: 'center', padding: '60px'}}>
-              <AlertCircle size={48} style={{color: 'var(--text-muted)', marginBottom: '16px'}} />
-              <h3 style={{marginBottom: '8px'}}>Пока нет заявок</h3>
-              <p style={{color: 'var(--text-muted)', marginBottom: '24px'}}>
-                Будьте первым, кто сообщит о грязном месте!
-              </p>
-              <Link to="/submit" className="btn btn-primary">
-                Подать заявку
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ManagerPage() {
-  const [locations, setLocations] = useState([])
-  const [tab, setTab] = useState('ready')
-  const [processed, setProcessed] = useState([])
-
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([api.getStats(), api.getProcessed()])
-      .then(([stats, proc]) => {
-        setLocations(stats.locations || [])
+      .then(([statsData, proc]) => {
+        setLocations(statsData.locations || [])
         setProcessed(proc.map(a => a.toLowerCase().trim()))
+        setStats(statsData)
       })
       .catch(console.error)
-  }, [])
+  }
+
+  if (!auth?.role) {
+    return <Navigate to="/login" />
+  }
 
   const markAsProcessed = async (address) => {
     try {
@@ -572,94 +535,195 @@ function ManagerPage() {
 
   const displayLocations = tab === 'ready' ? readyLocations : tab === 'pending' ? pendingLocations : doneLocations
 
+  const locationsWithCoords = locations.filter(l => l.lat && l.lng)
+
   return (
     <div className="dashboard">
       <div className="container">
         <div className="dashboard-header">
-          <h1 className="dashboard-title">Панель менеджера</h1>
-          <div className="dashboard-tabs">
-            <button
-              className={`tab ${tab === 'ready' ? 'active' : ''}`}
-              onClick={() => setTab('ready')}
-            >
-              К установке ({readyLocations.length})
-            </button>
-            <button
-              className={`tab ${tab === 'pending' ? 'active' : ''}`}
-              onClick={() => setTab('pending')}
-            >
-              Собираем ({pendingLocations.length})
-            </button>
-            <button
-              className={`tab ${tab === 'done' ? 'active' : ''}`}
-              onClick={() => setTab('done')}
-            >
-              Выполнено ({doneLocations.length})
-            </button>
+          <h1 className="dashboard-title">
+            {auth.role === 'admin' ? 'Панель администратора' : 'Панель менеджера'}
+          </h1>
+          <div className="dashboard-stats">
+            <div className="mini-stat">
+              <span className="mini-stat-value">{stats.totalRequests}</span>
+              <span className="mini-stat-label">заявок</span>
+            </div>
+            <div className="mini-stat">
+              <span className="mini-stat-value">{locations.length}</span>
+              <span className="mini-stat-label">локаций</span>
+            </div>
           </div>
         </div>
 
+        {/* Карта всех локаций */}
+        <div className="dashboard-map-section">
+          <h2 style={{marginBottom: '16px', fontSize: '18px', fontWeight: '600'}}>Карта заявок</h2>
+          <div className="dashboard-map-wrapper">
+            <MapContainer
+              center={defaultCenter}
+              zoom={12}
+              className="dashboard-map"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {locationsWithCoords.map((loc, idx) => (
+                <Marker
+                  key={idx}
+                  position={[loc.lat, loc.lng]}
+                  eventHandlers={{
+                    click: () => setSelectedLocation(loc)
+                  }}
+                >
+                  <Popup>
+                    <div style={{minWidth: '200px'}}>
+                      <strong>{loc.address}</strong>
+                      <div style={{marginTop: '8px', color: '#666'}}>
+                        {loc.count} {loc.count === 1 ? 'заявка' : loc.count < 5 ? 'заявки' : 'заявок'}
+                      </div>
+                      <div style={{marginTop: '4px'}}>
+                        <span className={`badge ${loc.count >= 10 ? (isProcessed(loc.address) ? 'badge-done' : 'badge-ready') : 'badge-pending'}`}>
+                          {isProcessed(loc.address) ? 'Установлено' : loc.count >= 10 ? 'Готово' : 'Сбор заявок'}
+                        </span>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          </div>
+        </div>
+
+        {/* Табы */}
+        <div className="dashboard-tabs" style={{marginTop: '32px'}}>
+          <button
+            className={`tab ${tab === 'pending' ? 'active' : ''}`}
+            onClick={() => setTab('pending')}
+          >
+            Новые ({pendingLocations.length})
+          </button>
+          <button
+            className={`tab ${tab === 'ready' ? 'active' : ''}`}
+            onClick={() => setTab('ready')}
+          >
+            К установке ({readyLocations.length})
+          </button>
+          <button
+            className={`tab ${tab === 'done' ? 'active' : ''}`}
+            onClick={() => setTab('done')}
+          >
+            Выполнено ({doneLocations.length})
+          </button>
+        </div>
+
         {displayLocations.length === 0 && (
-          <div className="card" style={{textAlign: 'center', padding: '60px'}}>
+          <div className="card" style={{textAlign: 'center', padding: '60px', marginTop: '20px'}}>
             <Clock size={48} style={{color: 'var(--text-muted)', marginBottom: '16px'}} />
             <h3>Нет заявок в этой категории</h3>
           </div>
         )}
 
-        {displayLocations.map((loc, idx) => (
-          <div key={idx} className="manager-card">
-            {loc.photos[0] ? (
-              <img src={loc.photos[0]} alt="" className="manager-card-image" />
-            ) : (
-              <div className="manager-card-image" style={{background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                <MapPin size={48} color="white" />
-              </div>
-            )}
-            <div className="manager-card-content">
-              <div className="manager-card-header">
-                <div className="manager-card-address">{loc.address}</div>
-                <span className={`badge ${loc.count >= 10 ? (isProcessed(loc.address) ? 'badge-done' : 'badge-ready') : 'badge-pending'}`}>
-                  {isProcessed(loc.address) ? 'Установлено' : loc.count >= 10 ? 'Готово' : 'Сбор заявок'}
-                </span>
-              </div>
-              <div className="manager-card-meta">
-                <span><Users size={16} style={{verticalAlign: 'middle', marginRight: '4px'}} /> {loc.count} заявок</span>
-                <span><Clock size={16} style={{verticalAlign: 'middle', marginRight: '4px'}} /> {new Date(loc.lastDate).toLocaleDateString('ru-RU')}</span>
-                <span>{loc.photos.length} фото</span>
-              </div>
-              {!isProcessed(loc.address) && loc.count >= 10 && (
-                <div className="manager-card-actions">
-                  <button
-                    className="btn btn-success btn-sm"
-                    onClick={() => markAsProcessed(loc.address)}
-                  >
-                    <CheckCircle size={16} />
-                    Отметить как выполнено
-                  </button>
+        <div style={{marginTop: '20px'}}>
+          {displayLocations.map((loc, idx) => (
+            <div key={idx} className="manager-card">
+              {loc.photos[0] ? (
+                <img src={loc.photos[0]} alt="" className="manager-card-image" />
+              ) : (
+                <div className="manager-card-image" style={{background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  <MapPin size={48} color="white" />
                 </div>
               )}
+              <div className="manager-card-content">
+                <div className="manager-card-header">
+                  <div className="manager-card-address">{loc.address}</div>
+                  <span className={`badge ${loc.count >= 10 ? (isProcessed(loc.address) ? 'badge-done' : 'badge-ready') : 'badge-pending'}`}>
+                    {isProcessed(loc.address) ? 'Установлено' : loc.count >= 10 ? 'Готово' : 'Сбор заявок'}
+                  </span>
+                </div>
+                <div className="manager-card-meta">
+                  <span><Users size={16} style={{verticalAlign: 'middle', marginRight: '4px'}} /> {loc.count} заявок</span>
+                  <span><Clock size={16} style={{verticalAlign: 'middle', marginRight: '4px'}} /> {loc.lastDate ? new Date(loc.lastDate).toLocaleDateString('ru-RU') : '—'}</span>
+                  <span>{loc.photos.length} фото</span>
+                </div>
+                <div className="manager-card-actions">
+                  {loc.lat && loc.lng && (
+                    <a
+                      href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Eye size={16} />
+                      На карте
+                    </a>
+                  )}
+                  {!isProcessed(loc.address) && loc.count >= 10 && (
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={() => markAsProcessed(loc.address)}
+                    >
+                      <CheckCircle size={16} />
+                      Выполнено
+                    </button>
+                  )}
+                  {auth.role === 'admin' && (
+                    <button className="btn btn-sm" style={{background: '#dc3545', color: 'white'}}>
+                      <Trash2 size={16} />
+                      Удалить
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
 }
 
+function AuthProvider({ children }) {
+  const [auth, setAuth] = useState(() => {
+    const saved = localStorage.getItem('taza_shaar_auth')
+    return saved ? JSON.parse(saved) : null
+  })
+
+  const login = (username, role) => {
+    const authData = { username, role }
+    setAuth(authData)
+    localStorage.setItem('taza_shaar_auth', JSON.stringify(authData))
+  }
+
+  const logout = () => {
+    setAuth(null)
+    localStorage.removeItem('taza_shaar_auth')
+  }
+
+  return (
+    <AuthContext.Provider value={{ ...auth, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
 function App() {
   return (
-    <BrowserRouter>
-      <Header />
-      <main>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/submit" element={<SubmitPage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/manager" element={<ManagerPage />} />
-        </Routes>
-      </main>
-      <Footer />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Header />
+        <main>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/submit" element={<SubmitPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+          </Routes>
+        </main>
+        <Footer />
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 

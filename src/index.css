@@ -456,11 +456,51 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .dashboard-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
+}
+
+.dashboard-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.mini-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.mini-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.mini-stat-label {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.dashboard-map-section {
+  margin-bottom: 32px;
+}
+
+.dashboard-map-wrapper {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-map {
+  height: 400px;
+  width: 100%;
 }
 
 .dashboard-tabs {
@@ -470,6 +510,7 @@ body {
   padding: 6px;
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
+  width: fit-content;
 }
 
 .tab {
