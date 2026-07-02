@@ -647,6 +647,14 @@ function Dashboard() {
                   <span><Clock size={16} style={{verticalAlign: 'middle', marginRight: '4px'}} /> {loc.lastDate ? new Date(loc.lastDate).toLocaleDateString('ru-RU') : '—'}</span>
                   <span>{loc.photos.length} фото</span>
                 </div>
+                {loc.comments && loc.comments.length > 0 && (
+                  <div className="manager-card-comments">
+                    <div className="comments-label">Комментарии:</div>
+                    {loc.comments.map((comment, i) => (
+                      <div key={i} className="comment-item">"{comment}"</div>
+                    ))}
+                  </div>
+                )}
                 <div className="manager-card-actions">
                   {loc.lat && loc.lng && (
                     <a

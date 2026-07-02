@@ -603,6 +603,33 @@ body {
 .manager-card-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.manager-card-comments {
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+
+.comments-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.comment-item {
+  font-size: 14px;
+  color: var(--text);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-style: italic;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
 }
 
 /* Section */
